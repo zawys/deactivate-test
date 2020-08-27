@@ -4,21 +4,38 @@ import * as cp from 'child_process';
 import * as process from 'process';
 
 let teeTerm: vscode.Terminal | undefined;
+const fsLog = "/tmp/deactivate-test/fs_log";
 
 async function log(name: string) {
 	const time = process.hrtime();
-	fs.mkdirSync(`/tmp/deactivate-test/${time[0]}.${time[1]} ${name}`);
-	await vscode.workspace.getConfiguration("deactivate-test")
-		.update(`deactivate-test-${name}`, `${time[0]}.${time[1]}`);
-	teeTerm!.sendText(`${time[0]}.${time[1]} ${name}\n`);
+	const stamp = `${time[0]}.${time[1]} ${name}`;
+	fs.appendFileSync(fsLog, `${stamp} A \n`);
+	try {
+		teeTerm!.sendText(`${time[0]}.${time[1]} ${name}\n`);
+	} catch (e) {
+		fs.appendFileSync(fsLog, `${stamp} B \n`);
+	}
+	fs.appendFileSync(fsLog, `${stamp} C\n`);
+	try {
+		await vscode.workspace.getConfiguration("deactivate-test")
+			.update(
+				`deactivate-test-${name}`,
+				`${time[0]}.${time[1]}`,
+				vscode.ConfigurationTarget.Global
+			);
+	} catch (e) {
+		fs.appendFileSync(fsLog, `${stamp} D\n`);
+	}
+	fs.appendFileSync(fsLog, `${stamp} E\n`);
 }
 
 async function init() {
 	cp.execFileSync("/usr/bin/rm", ["-rf", "/tmp/deactivate-test"]);
 	fs.mkdirSync("/tmp/deactivate-test");
-	for (const k of ["activate", "deactivate", "deactivateEarly", "deactivateLate"]) {
+	fs.appendFileSync(fsLog, 'init\n');
+	for (const k of ["activate", "deactivateInstant", "deactivateEarly", "deactivateLate"]) {
 		await vscode.workspace.getConfiguration("deactivate-test")
-			.update(`deactivate-test-${k}`, null);
+			.update(`deactivate-test-${k}`, null, vscode.ConfigurationTarget.Global);
 	}
 	teeTerm = vscode.window.createTerminal({
 		name: "deactivate-test",
@@ -43,9 +60,17 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export async function deactivate(): Promise<void> {
-	await log("deactivate");
-	await new Promise(r => setTimeout(r, 500));
-	await log("deactivateEarly");
-	await new Promise(r => setTimeout(r, 5000));
-	await log("deactivateLate");
+	await Promise.all([
+		await log("deactivateInstant"),
+		await (async () => {
+			await new Promise(r => setTimeout(r, 50));
+			await log("deactivateEarly");
+		})(),
+		await (async () => {
+			await new Promise(r => setTimeout(r, 7000));
+			await log("deactivateLate");
+		})(),
+	]).catch(e => {
+		fs.appendFileSync(fsLog, `catch deactivate`);
+	});
 }
