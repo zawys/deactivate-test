@@ -33,7 +33,7 @@ async function init() {
 	cp.execFileSync("/usr/bin/rm", ["-rf", "/tmp/deactivate-test"]);
 	fs.mkdirSync("/tmp/deactivate-test");
 	fs.appendFileSync(fsLog, 'init\n');
-	for (const k of ["activate", "deactivateInstant", "deactivateEarly", "deactivateLate"]) {
+	for (const k of ["activate", "dispose", "deactivateInstant", "deactivateEarly", "deactivateLate"]) {
 		await vscode.workspace.getConfiguration("deactivate-test")
 			.update(`deactivate-test-${k}`, null, vscode.ConfigurationTarget.Global);
 	}

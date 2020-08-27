@@ -29,6 +29,10 @@
 					"type": ["string", "null"],
 					"default": null
 				},
+				"deactivate-test.deactivate-test-dispose": {
+					"type": ["string", "null"],
+					"default": null
+				},
 				"deactivate-test.deactivate-test-deactivateInstant": {
 					"type": ["string", "null"],
 					"default": null
